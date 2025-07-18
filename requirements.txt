@@ -1,0 +1,16 @@
+# Core
+streamlit
+python-dotenv
+torch
+torchvision
+Pillow
+numpy
+matplotlib
+
+# MongoDB
+pymongo
+dnspython
+gridfs
+
+# Optional (Camera)
+opencv-python-headless
