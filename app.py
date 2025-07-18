@@ -44,8 +44,6 @@ FER2013 Mood Detection App with PyTorch + MongoDB
 # =============================
 # Imports
 # =============================
-from dotenv import load_dotenv
-load_dotenv()
 # Retrieve secrets
 mongo_uri = st.secrets["MONGO"]["URI"]
 db_name = st.secrets["MONGO"]["DB_NAME"]
@@ -81,7 +79,7 @@ except ImportError:  # not fatal
 # 2. os.environ["MONGO_URI"]
 # 3. fallback literal below
 MONGO_URI_FALLBACK = "mongodb://localhost:27017/"  # dev default; change/remove in prod
-MONGO_DB_NAME = "mood_detection"
+MONGO_DB_NAME = st.secrets["MONGO"]["DB_NAME"]
 FEEDBACK_COLLECTION = "feedback"
 GRIDFS_BUCKET_NAME = "feedback_images"  # GridFS bucket prefix (creates <bucket>.files & <bucket>.chunks)
 
@@ -200,8 +198,7 @@ def init_mongo():
     (client, db, fs) or (None, None, None) on failure.
     """
 
-    uri = os.getenv("MONGO_URI")
-    print(uri)
+    uri = st.secrets["MONGO"]["URI"]
     try:
         client = MongoClient(uri, serverSelectionTimeoutMS=5000)
         # Trigger a server selection to fail fast if unreachable
