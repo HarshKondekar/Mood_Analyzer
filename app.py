@@ -46,6 +46,9 @@ FER2013 Mood Detection App with PyTorch + MongoDB
 # =============================
 from dotenv import load_dotenv
 load_dotenv()
+# Retrieve secrets
+mongo_uri = st.secrets["MONGO"]["URI"]
+db_name = st.secrets["MONGO"]["DB_NAME"]
 import os
 import io
 import json
@@ -502,5 +505,3 @@ if st.sidebar.checkbox("Show Debug Info"):
                     st.sidebar.write("No feedback docs yet.")
             except Exception as e:
                 st.sidebar.write(f"(error loading latest image) {e}")
-
-
