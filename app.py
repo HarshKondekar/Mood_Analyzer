@@ -207,15 +207,18 @@ GRIDFS_BUCKET_NAME = "feedback_images"
 
 @st.cache_resource(show_spinner=False)
 def init_mongo():
-    """Initialize MongoDB + GridFS for local or cloud."""
-    # 1️⃣ Try Streamlit secrets first
+    """
+    Initialize MongoDB + GridFS.
+    Works locally (from .env) and on Streamlit Cloud (from secrets.toml)
+    """
+    # 1️⃣ Get URI from Streamlit secrets
     uri = st.secrets.get("MONGO_URI")
 
     # 2️⃣ Fallback to environment variable
     if not uri:
         uri = os.getenv("MONGO_URI")
 
-    # 3️⃣ Fallback to local MongoDB (development)
+    # 3️⃣ Fallback local development
     if not uri:
         uri = "mongodb://localhost:27017/"
 
@@ -224,7 +227,7 @@ def init_mongo():
             uri,
             serverSelectionTimeoutMS=5000,
             tls=True,
-            tlsAllowInvalidCertificates=True  # for local testing
+            tlsAllowInvalidCertificates=True  # Streamlit Cloud TLS workaround
         )
         client.admin.command('ping')  # test connection
         db = client[MONGO_DB_NAME]
@@ -235,9 +238,11 @@ def init_mongo():
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
 
+
 # Initialize handles
 CLIENT, DB, FS = init_mongo()
 FEEDBACK_COL = DB["feedback"] if DB else None
+
 
 # =============================
 # Save Feedback (Fixed)
