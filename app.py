@@ -28,15 +28,14 @@ FER2013 Mood Detection App with PyTorch + MongoDB
 # =============================
 # Imports
 # =============================
+import streamlit as st
 from dotenv import load_dotenv
 import os
-load_dotenv()  # auto-load .env if running locally
-
 import io
 import json
 import base64
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional, Dict, Tuple
 
 import numpy as np
 import torch
@@ -45,9 +44,13 @@ import torch.nn.functional as F
 from torchvision import transforms
 from PIL import Image
 import matplotlib.pyplot as plt
-from pymongo import MongoClient
+
+from pymongo import MongoClient   # keep only once, near other imports
 import gridfs
 from bson import ObjectId
+import certifi
+
+
 
 # Optional: OpenCV for camera processing
 try:
@@ -76,10 +79,16 @@ def get_mongo_uri():
 @st.cache_resource(show_spinner=False)
 def init_mongo():
     uri = get_mongo_uri()
-    st.write("DEBUG: Using Mongo URI →", uri)  # 👈 debug print
+    st.write("DEBUG: Using Mongo URI →", uri)
     try:
-        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
-        client.admin.command('ping')
+        client = MongoClient(
+            uri,
+            serverSelectionTimeoutMS=5000,
+            ssl=True,
+            ssl_cert_reqs="CERT_REQUIRED",
+            ssl_ca_certs=certifi.where()
+        )
+        client.admin.command("ping")  # Test connection
         db = client[MONGO_DB_NAME]
         fs = gridfs.GridFS(db, collection=GRIDFS_BUCKET_NAME)
         st.success("✅ MongoDB connected successfully!")
@@ -87,6 +96,10 @@ def init_mongo():
     except Exception as e:
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
+
+
+
+
 
 # =============================
 # Model Definition
