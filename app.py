@@ -48,8 +48,9 @@ from dotenv import load_dotenv
 import os
 
 # Specify full path
-env_path = r"C:\Users\HP\mood-analyzer\.env"
-load_dotenv(dotenv_path=env_path)
+from dotenv import load_dotenv
+load_dotenv()  # this will auto-find a .env if running locally
+
 
 # Check if loaded
 print("MONGO_URI:", os.getenv("MONGO_URI"))
