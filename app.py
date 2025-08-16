@@ -265,9 +265,10 @@ if st.session_state.mode == 'upload':
 elif st.session_state.mode == 'camera':
     st.subheader("Camera Input")
     camera_image = st.camera_input("Take a photo")
-        if camera_image:
+    if camera_image:
         img = Image.open(camera_image).convert('RGB')
         st.image(img, caption="Camera Image", use_container_width=True)
+
 
 if img is not None:
     if st.button("🔮 Predict Mood", use_container_width=True):
