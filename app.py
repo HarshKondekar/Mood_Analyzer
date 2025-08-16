@@ -83,13 +83,7 @@ except ImportError:  # not fatal
 # Order of precedence for connection string:
 # 1. st.secrets["MONGO_URI"]
 # 2. os.environ["MONGO_URI"]
-<<<<<<< HEAD
 # 3. fallback literal below
-=======
-# 3. fallback literal belo
-
-
->>>>>>> ee2903b374a30a2694f34e1087a544eb81090c97
 MONGO_URI_FALLBACK = "mongodb://localhost:27017/"  # dev default; change/remove in prod
 MONGO_DB_NAME = "mood_detection"
 FEEDBACK_COLLECTION = "feedback"
@@ -201,7 +195,7 @@ def plot_probs(probs: np.ndarray):
 # =============================
 # Mongo Init (Fixed)
 # =============================
-<<<<<<< HEAD
+
 @st.cache_resource(show_spinner=False)
 def init_mongo():
     """Initialize MongoDB + GridFS connection."""
@@ -227,8 +221,9 @@ def init_mongo():
 
 # Initialize Mongo
 CLIENT, DB, FS = init_mongo()
-FEEDBACK_COL = DB[FEEDBACK_COLLECTION] if DB else None
-=======
+FEEDBACK_COL = DB[FEEDBACK_COLLECTION] if DB is not None else None
+
+
 import streamlit as st
 from pymongo import MongoClient
 import gridfs
@@ -270,7 +265,7 @@ except Exception as e:
 FEEDBACK_COL = DB["feedback"] if DB is not None else None
 
 
->>>>>>> ee2903b374a30a2694f34e1087a544eb81090c97
+
 
 # =============================
 # Save Feedback (Fixed)
@@ -532,8 +527,8 @@ if st.sidebar.checkbox("Show Debug Info"):
                 else:
                     st.sidebar.write("No feedback docs yet.")
             except Exception as e:
-<<<<<<< HEAD
+
                 st.sidebar.write(f"(error loading latest image) {e}")
-=======
+
                 st.sidebar.write(f"(error loading latest image) {e}")
->>>>>>> ee2903b374a30a2694f34e1087a544eb81090c97
+
