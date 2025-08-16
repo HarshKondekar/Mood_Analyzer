@@ -66,16 +66,6 @@ MONGO_DB_NAME = "mood_detection"
 FEEDBACK_COLLECTION = "feedback"
 GRIDFS_BUCKET_NAME = "feedback_images"
 
-def get_mongo_uri():
-    # 1. Try Streamlit secrets
-    if "MONGO_URI" in st.secrets:
-        return st.secrets["MONGO_URI"]
-    # 2. Try environment variable
-    if os.getenv("MONGO_URI"):
-        return os.getenv("MONGO_URI")
-    # 3. Fallback (local only)
-    return MONGO_URI_FALLBACK
-
 @st.cache_resource(show_spinner=False)
 def init_mongo():
     uri = get_mongo_uri()
@@ -84,11 +74,10 @@ def init_mongo():
         client = MongoClient(
             uri,
             serverSelectionTimeoutMS=5000,
-            ssl=True,
-            ssl_cert_reqs="CERT_REQUIRED",
-            ssl_ca_certs=certifi.where()
+            tls=True,                    # ✅ replaces ssl=True
+            tlsCAFile=certifi.where()    # ✅ replaces ssl_ca_certs
         )
-        client.admin.command("ping")  # Test connection
+        client.admin.command("ping")  # test
         db = client[MONGO_DB_NAME]
         fs = gridfs.GridFS(db, collection=GRIDFS_BUCKET_NAME)
         st.success("✅ MongoDB connected successfully!")
@@ -96,6 +85,7 @@ def init_mongo():
     except Exception as e:
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
+
 
 
 
