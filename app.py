@@ -74,11 +74,19 @@ def get_mongo_uri():
     return MONGO_URI_FALLBACK
 
 @st.cache_resource(show_spinner=False)
+from pymongo import MongoClient
+import certifi
+
 def init_mongo():
     uri = get_mongo_uri()
-    st.write("DEBUG: Using Mongo URI →", uri)  # 👈 debug print
+    st.write("DEBUG: Using Mongo URI →", uri)
     try:
-        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+        client = MongoClient(
+            uri,
+            serverSelectionTimeoutMS=5000,
+            tls=True,                     # force TLS
+            tlsCAFile=certifi.where()     # use certifi's CA certs
+        )
         client.admin.command('ping')
         db = client[MONGO_DB_NAME]
         fs = gridfs.GridFS(db, collection=GRIDFS_BUCKET_NAME)
@@ -87,6 +95,7 @@ def init_mongo():
     except Exception as e:
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
+
 
 # =============================
 # Model Definition
