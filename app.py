@@ -45,11 +45,11 @@ from torchvision import transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 
-from pymongo import MongoClient   # ✅ correct place
+from pymongo import MongoClient   # keep only once, near other imports
 import gridfs
 from bson import ObjectId
 import certifi
-        
+
 
 
 # Optional: OpenCV for camera processing
@@ -77,9 +77,6 @@ def get_mongo_uri():
     return MONGO_URI_FALLBACK
 
 @st.cache_resource(show_spinner=False)
-from pymongo import MongoClient
-import certifi
-
 def init_mongo():
     uri = get_mongo_uri()
     st.write("DEBUG: Using Mongo URI →", uri)
@@ -98,6 +95,7 @@ def init_mongo():
     except Exception as e:
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
+
 
 
 
