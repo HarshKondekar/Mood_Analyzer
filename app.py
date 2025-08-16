@@ -30,13 +30,11 @@ FER2013 Mood Detection App with PyTorch + MongoDB
 # =============================
 from dotenv import load_dotenv
 import os
-load_dotenv()  # auto-load .env if running locally
-
 import io
 import json
 import base64
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional, Dict, Tuple
 
 import numpy as np
 import torch
@@ -45,9 +43,12 @@ import torch.nn.functional as F
 from torchvision import transforms
 from PIL import Image
 import matplotlib.pyplot as plt
-from pymongo import MongoClient
+
+from pymongo import MongoClient 
 import gridfs
 from bson import ObjectId
+import certifi                  
+
 
 # Optional: OpenCV for camera processing
 try:
@@ -85,7 +86,7 @@ def init_mongo():
             uri,
             serverSelectionTimeoutMS=5000,
             tls=True,                     # force TLS
-            tlsCAFile=certifi.where()     # use certifi's CA certs
+            tlsCAFile=certifi.where()     # use certifi CA bundle
         )
         client.admin.command('ping')
         db = client[MONGO_DB_NAME]
@@ -95,6 +96,7 @@ def init_mongo():
     except Exception as e:
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
+
 
 
 # =============================
