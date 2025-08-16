@@ -84,11 +84,11 @@ def init_mongo():
         client = MongoClient(
             uri,
             serverSelectionTimeoutMS=5000,
-            ssl=True,                      # ✅ use ssl not tls
-            ssl_cert_reqs="CERT_REQUIRED", # ✅ enforce certificate validation
-            ssl_ca_certs=certifi.where()   # ✅ use certifi CA bundle
+            ssl=True,
+            ssl_cert_reqs="CERT_REQUIRED",
+            ssl_ca_certs=certifi.where()
         )
-        client.admin.command('ping')  # test connection
+        client.admin.command("ping")  # Test connection
         db = client[MONGO_DB_NAME]
         fs = gridfs.GridFS(db, collection=GRIDFS_BUCKET_NAME)
         st.success("✅ MongoDB connected successfully!")
@@ -96,6 +96,7 @@ def init_mongo():
     except Exception as e:
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
+
 
 
 
