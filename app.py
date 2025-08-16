@@ -161,23 +161,34 @@ def plot_probs(probs: np.ndarray):
 # =============================
 @st.cache_resource(show_spinner=False)
 def init_mongo():
+    import certifi
+    from pymongo import MongoClient
+    import gridfs
+    import os
+    import streamlit as st
+
+    # Use the provided Atlas URI
+    uri = None
     try:
-        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000, tlsCAFile=certifi.where())
-        client.admin.command("ping")
-        db = client[MONGO_DB_NAME]
-        fs = gridfs.GridFS(db, collection=GRIDFS_BUCKET_NAME)
-        st.success("✅ MongoDB connected successfully (Atlas)")
-        return client, db, fs
+        if "MONGO_URI" in st.secrets and st.secrets["MONGO_URI"]:
+            uri = st.secrets["MONGO_URI"]
     except Exception:
-        try:
-            client = MongoClient(MONGO_URI_FALLBACK, serverSelectionTimeoutMS=5000)
-            db = client[MONGO_DB_NAME]
-            fs = gridfs.GridFS(db, collection=GRIDFS_BUCKET_NAME)
-            st.warning("Connected to local MongoDB instead of Atlas")
-            return client, db, fs
-        except Exception as e:
-            st.error(f"❌ MongoDB connection failed: {e}")
-            return None, None, None
+        pass
+
+    if uri is None:
+        # fallback to your hardcoded URI
+        uri = "mongodb+srv://harshkondekar:vEmSS5mpmGWvBSpo@moodanalyzer.2bnqwd0.mongodb.net/mood_detection?retryWrites=true&w=majority"
+
+    try:
+        client = MongoClient(uri, serverSelectionTimeoutMS=10000, tlsCAFile=certifi.where())
+        client.admin.command("ping")
+        db = client["mood_detection"]
+        fs = gridfs.GridFS(db, collection="feedback_images")
+        st.success("✅ MongoDB connected successfully!")
+        return client, db, fs
+    except Exception as e:
+        st.error(f"❌ MongoDB connection failed: {e}")
+        return None, None, None
 
 CLIENT, DB, FS = init_mongo()
 FEEDBACK_COL = DB[FEEDBACK_COLLECTION] if DB is not None else None
