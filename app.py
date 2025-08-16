@@ -84,10 +84,11 @@ def init_mongo():
         client = MongoClient(
             uri,
             serverSelectionTimeoutMS=5000,
-            tls=True,                     # force TLS
-            tlsCAFile=certifi.where()     # use certifi CA bundle
+            ssl=True,                      # ✅ use ssl not tls
+            ssl_cert_reqs="CERT_REQUIRED", # ✅ enforce certificate validation
+            ssl_ca_certs=certifi.where()   # ✅ use certifi CA bundle
         )
-        client.admin.command('ping')
+        client.admin.command('ping')  # test connection
         db = client[MONGO_DB_NAME]
         fs = gridfs.GridFS(db, collection=GRIDFS_BUCKET_NAME)
         st.success("✅ MongoDB connected successfully!")
