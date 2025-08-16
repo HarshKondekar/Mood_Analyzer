@@ -83,7 +83,9 @@ except ImportError:  # not fatal
 # Order of precedence for connection string:
 # 1. st.secrets["MONGO_URI"]
 # 2. os.environ["MONGO_URI"]
-# 3. fallback literal below
+# 3. fallback literal belo
+
+
 MONGO_URI_FALLBACK = "mongodb://localhost:27017/"  # dev default; change/remove in prod
 MONGO_DB_NAME = "mood_detection"
 FEEDBACK_COLLECTION = "feedback"
@@ -195,21 +197,36 @@ def plot_probs(probs: np.ndarray):
 # =============================
 # Mongo Init (Fixed)
 # =============================
+import streamlit as st
+from pymongo import MongoClient
+import gridfs
+import os
+
+MONGO_DB_NAME = "mood_detection"
+GRIDFS_BUCKET_NAME = "feedback_images"
+
 @st.cache_resource(show_spinner=False)
 def init_mongo():
-    """Initialize MongoDB + GridFS connection."""
-    # Try st.secrets first
-    uri = None
-    if "MONGO_URI" in st.secrets:
-        uri = st.secrets["MONGO_URI"]
-    elif os.getenv("MONGO_URI"):
+    """Initialize MongoDB + GridFS for local or cloud."""
+    # 1️⃣ Try Streamlit secrets first
+    uri = st.secrets.get("MONGO_URI")
+
+    # 2️⃣ Fallback to environment variable
+    if not uri:
         uri = os.getenv("MONGO_URI")
-    else:
-        uri = MONGO_URI_FALLBACK  # fallback
-    
+
+    # 3️⃣ Fallback to local MongoDB (development)
+    if not uri:
+        uri = "mongodb://localhost:27017/"
+
     try:
-        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
-        client.admin.command('ping')  # fail fast if unreachable
+        client = MongoClient(
+            uri,
+            serverSelectionTimeoutMS=5000,
+            tls=True,
+            tlsAllowInvalidCertificates=True  # for local testing
+        )
+        client.admin.command('ping')  # test connection
         db = client[MONGO_DB_NAME]
         fs = gridfs.GridFS(db, collection=GRIDFS_BUCKET_NAME)
         st.success("✅ MongoDB connected successfully!")
@@ -218,9 +235,9 @@ def init_mongo():
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
 
-# Initialize Mongo
+# Initialize handles
 CLIENT, DB, FS = init_mongo()
-FEEDBACK_COL = DB[FEEDBACK_COLLECTION] if DB else None
+FEEDBACK_COL = DB["feedback"] if DB else None
 
 # =============================
 # Save Feedback (Fixed)
