@@ -99,7 +99,7 @@ def get_mongo_uri():
 @st.cache_resource(show_spinner=False)
 def init_mongo():
     uri = get_mongo_uri()
-    st.write("DEBUG: Using Mongo URI →", uri)  # Debug line
+    st.write("DEBUG: Using Mongo URI →", uri)  # 👈 add this line
     try:
         client = MongoClient(uri, serverSelectionTimeoutMS=5000)
         client.admin.command('ping')
@@ -111,7 +111,6 @@ def init_mongo():
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
 
-CLIENT, DB, FS = init_mongo()
 
 
 # =============================
