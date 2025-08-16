@@ -208,30 +208,22 @@ GRIDFS_BUCKET_NAME = "feedback_images"
 @st.cache_resource(show_spinner=False)
 def init_mongo():
     """
-    Initialize MongoDB + GridFS.
-    Works locally (.env) and on Streamlit Cloud (secrets.toml)
+    Initialize MongoDB + GridFS (Streamlit Cloud compatible).
     """
-    import os
     from pymongo import MongoClient
     import gridfs
+    import os
 
-    # 1️⃣ Try Streamlit secrets first
-    uri = st.secrets.get("MONGO_URI")
+    # Use Streamlit secrets first, fallback to env var
+    uri = st.secrets.get("MONGO_URI") or os.getenv("MONGO_URI")
 
-    # 2️⃣ Fallback to environment variable
-    if not uri:
-        uri = os.getenv("MONGO_URI")
-
-    # 3️⃣ Fallback to your Atlas URI directly
+    # Fallback directly to Atlas URI if needed
     if not uri:
         uri = "mongodb+srv://harshkondekar:vEmSS5mpmGWvBSpo@moodanalyzer.2bnqwd0.mongodb.net/mood_detection?retryWrites=true&w=majority"
 
     try:
-        # Connect using the SRV URI
-        client = MongoClient(
-            uri,
-            serverSelectionTimeoutMS=5000
-        )
+        # ⚡ DO NOT add tls=True or tlsAllowInvalidCertificates
+        client = MongoClient(uri, serverSelectionTimeoutMS=10000)
         client.admin.command('ping')  # test connection
         db = client["mood_detection"]
         fs = gridfs.GridFS(db, collection="feedback_images")
@@ -241,6 +233,7 @@ def init_mongo():
     except Exception as e:
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
+
 
 
 
