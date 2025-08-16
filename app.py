@@ -209,16 +209,20 @@ GRIDFS_BUCKET_NAME = "feedback_images"
 def init_mongo():
     """
     Initialize MongoDB + GridFS.
-    Works locally (from .env) and on Streamlit Cloud (from secrets.toml)
+    Works locally (.env) and on Streamlit Cloud (secrets.toml)
     """
-    # 1️⃣ Get URI from Streamlit secrets
+    import os
+    from pymongo import MongoClient
+    import gridfs
+
+    # 1️⃣ Try Streamlit secrets first
     uri = st.secrets.get("MONGO_URI")
 
     # 2️⃣ Fallback to environment variable
     if not uri:
         uri = os.getenv("MONGO_URI")
 
-    # 3️⃣ Fallback local development
+    # 3️⃣ Fallback to local dev (not recommended for production)
     if not uri:
         uri = "mongodb://localhost:27017/"
 
@@ -226,17 +230,18 @@ def init_mongo():
         client = MongoClient(
             uri,
             serverSelectionTimeoutMS=5000,
-            tls=True,
-            tlsAllowInvalidCertificates=True  # Streamlit Cloud TLS workaround
+            tls=True,                        # Force TLS/SSL
+            tlsAllowInvalidCertificates=True  # Streamlit Cloud workaround
         )
         client.admin.command('ping')  # test connection
-        db = client[MONGO_DB_NAME]
-        fs = gridfs.GridFS(db, collection=GRIDFS_BUCKET_NAME)
+        db = client["mood_detection"]
+        fs = gridfs.GridFS(db, collection="feedback_images")
         st.success("✅ MongoDB connected successfully!")
         return client, db, fs
     except Exception as e:
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
+
 
 
 # Initialize handles
