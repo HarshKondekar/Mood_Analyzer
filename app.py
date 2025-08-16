@@ -180,7 +180,8 @@ def init_mongo():
             return None, None, None
 
 CLIENT, DB, FS = init_mongo()
-FEEDBACK_COL = DB[FEEDBACK_COLLECTION] if DB else None
+FEEDBACK_COL = DB[FEEDBACK_COLLECTION] if DB is not None else None
+
 
 # =============================
 # Feedback Functions
