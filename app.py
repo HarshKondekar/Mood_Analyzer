@@ -44,10 +44,16 @@ FER2013 Mood Detection App with PyTorch + MongoDB
 # =============================
 # Imports
 # =============================
-# Retrieve secrets
-mongo_uri = st.secrets["MONGO"]["URI"]
-db_name = st.secrets["MONGO"]["DB_NAME"]
+from dotenv import load_dotenv
 import os
+
+# Specify full path
+env_path = r"C:\Users\HP\mood-analyzer\.env"
+load_dotenv(dotenv_path=env_path)
+
+# Check if loaded
+print("MONGO_URI:", os.getenv("MONGO_URI"))
+
 import io
 import json
 import base64
@@ -79,7 +85,7 @@ except ImportError:  # not fatal
 # 2. os.environ["MONGO_URI"]
 # 3. fallback literal below
 MONGO_URI_FALLBACK = "mongodb://localhost:27017/"  # dev default; change/remove in prod
-MONGO_DB_NAME = st.secrets["MONGO"]["DB_NAME"]
+MONGO_DB_NAME = "mood_detection"
 FEEDBACK_COLLECTION = "feedback"
 GRIDFS_BUCKET_NAME = "feedback_images"  # GridFS bucket prefix (creates <bucket>.files & <bucket>.chunks)
 
@@ -95,7 +101,7 @@ st.caption(f"Using device: {DEVICE}")
 # Model Definition
 # =============================
 class SEBlock(nn.Module):
-    def __init__(self, channels, reduction=16):
+    def __init__(self, channels, reduction=16):  # Changed from _init_ to __init__
         super().__init__()
         self.squeeze = nn.AdaptiveAvgPool2d(1)
         self.excitation = nn.Sequential(
@@ -113,7 +119,7 @@ class SEBlock(nn.Module):
 
 
 class AdvancedMoodClassifier(nn.Module):
-    def __init__(self, num_classes=7):
+    def __init__(self, num_classes=7):  # Changed from _init_ to __init__
         super().__init__()
         from torchvision import models
         backbone = models.efficientnet_b4(pretrained=True)
@@ -198,7 +204,8 @@ def init_mongo():
     (client, db, fs) or (None, None, None) on failure.
     """
 
-    uri = st.secrets["MONGO"]["URI"]
+    uri = os.getenv("MONGO_URI")
+    print(uri)
     try:
         client = MongoClient(uri, serverSelectionTimeoutMS=5000)
         # Trigger a server selection to fail fast if unreachable
