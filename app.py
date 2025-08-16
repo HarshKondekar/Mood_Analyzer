@@ -205,41 +205,38 @@ import os
 MONGO_DB_NAME = "mood_detection"
 GRIDFS_BUCKET_NAME = "feedback_images"
 
-@st.cache_resource(show_spinner=False)
-def init_mongo():
-    """
-    Initialize MongoDB + GridFS (Streamlit Cloud compatible).
-    """
-    from pymongo import MongoClient
-    import gridfs
-    import os
+from pymongo import MongoClient
+import gridfs
+import streamlit as st
 
-    # Use Streamlit secrets first, fallback to env var
-    uri = st.secrets.get("MONGO_URI") or os.getenv("MONGO_URI")
+# =============================
+# MongoDB connection
+# =============================
+MONGO_URI = "mongodb+srv://harshkondekar:vEmSS5mpmGWvBSpo@moodanalyzer.2bnqwd0.mongodb.net/mood_detection?retryWrites=true&w=majority"
 
-    # Fallback directly to Atlas URI if needed
-    if not uri:
-        uri = "mongodb+srv://harshkondekar:vEmSS5mpmGWvBSpo@moodanalyzer.2bnqwd0.mongodb.net/mood_detection?retryWrites=true&w=majority"
+try:
+    # Connect to MongoDB
+    CLIENT = MongoClient(
+        MONGO_URI,
+        serverSelectionTimeoutMS=10000  # 10s timeout
+    )
+    CLIENT.admin.command("ping")  # Test connection
+    DB = CLIENT["mood_detection"]
+    FS = gridfs.GridFS(DB, collection="feedback_images")
+    FEEDBACK_COL = DB["feedback"]
 
-    try:
-        # ⚡ DO NOT add tls=True or tlsAllowInvalidCertificates
-        client = MongoClient(uri, serverSelectionTimeoutMS=10000)
-        client.admin.command('ping')  # test connection
-        db = client["mood_detection"]
-        fs = gridfs.GridFS(db, collection="feedback_images")
-        st.success("✅ MongoDB connected successfully!")
-        return client, db, fs
+    st.success("✅ MongoDB connected successfully!")
 
-    except Exception as e:
-        st.error(f"❌ MongoDB connection failed: {e}")
-        return None, None, None
-
+except Exception as e:
+    st.error(f"❌ MongoDB connection failed: {e}")
+    CLIENT = DB = FS = FEEDBACK_COL = None
 
 
 
 # Initialize handles
-CLIENT, DB, FS = init_mongo()
-FEEDBACK_COL = DB["feedback"] if DB else None
+#CLIENT, DB, FS = init_mongo()
+FEEDBACK_COL = DB["feedback"] if DB is not None else None
+
 
 
 # =============================
