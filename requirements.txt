@@ -10,7 +10,6 @@ matplotlib
 # MongoDB
 pymongo
 dnspython
-gridfs
 
 # Optional (Camera)
 opencv-python-headless
