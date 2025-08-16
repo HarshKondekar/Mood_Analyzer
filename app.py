@@ -222,22 +222,22 @@ def init_mongo():
     if not uri:
         uri = os.getenv("MONGO_URI")
 
-    # 3️⃣ Fallback to local dev (not recommended for production)
+    # 3️⃣ Fallback to your Atlas URI directly
     if not uri:
-        uri = "mongodb://localhost:27017/"
+        uri = "mongodb+srv://harshkondekar:vEmSS5mpmGWvBSpo@moodanalyzer.2bnqwd0.mongodb.net/mood_detection?retryWrites=true&w=majority"
 
     try:
+        # Connect using the SRV URI
         client = MongoClient(
             uri,
-            serverSelectionTimeoutMS=5000,
-            tls=True,                        # Force TLS/SSL
-            tlsAllowInvalidCertificates=True  # Streamlit Cloud workaround
+            serverSelectionTimeoutMS=5000
         )
         client.admin.command('ping')  # test connection
         db = client["mood_detection"]
         fs = gridfs.GridFS(db, collection="feedback_images")
         st.success("✅ MongoDB connected successfully!")
         return client, db, fs
+
     except Exception as e:
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
