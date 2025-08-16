@@ -81,22 +81,38 @@ except ImportError:  # not fatal
 # =============================
 # Mongo Config
 # =============================
-# Order of precedence for connection string:
-# 1. st.secrets["MONGO_URI"]
-# 2. os.environ["MONGO_URI"]
-# 3. fallback literal below
-MONGO_URI_FALLBACK = "mongodb://localhost:27017/"  # dev default; change/remove in prod
+MONGO_URI_FALLBACK = "mongodb://localhost:27017/"  # dev only
 MONGO_DB_NAME = "mood_detection"
 FEEDBACK_COLLECTION = "feedback"
-GRIDFS_BUCKET_NAME = "feedback_images"  # GridFS bucket prefix (creates <bucket>.files & <bucket>.chunks)
+GRIDFS_BUCKET_NAME = "feedback_images"
 
+def get_mongo_uri():
+    # 1. Try Streamlit secrets
+    if "MONGO_URI" in st.secrets:
+        return st.secrets["MONGO_URI"]
+    # 2. Try environment variable
+    if os.getenv("MONGO_URI"):
+        return os.getenv("MONGO_URI")
+    # 3. Fallback (local only)
+    return MONGO_URI_FALLBACK
 
-# =============================
-# Device & Classes
-# =============================
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CLASS_NAMES = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
-st.caption(f"Using device: {DEVICE}")
+@st.cache_resource(show_spinner=False)
+def init_mongo():
+    uri = get_mongo_uri()
+    st.write("DEBUG: Using Mongo URI →", uri)  # Debug line
+    try:
+        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+        client.admin.command('ping')
+        db = client[MONGO_DB_NAME]
+        fs = gridfs.GridFS(db, collection=GRIDFS_BUCKET_NAME)
+        st.success("✅ MongoDB connected successfully!")
+        return client, db, fs
+    except Exception as e:
+        st.error(f"❌ MongoDB connection failed: {e}")
+        return None, None, None
+
+CLIENT, DB, FS = init_mongo()
+
 
 # =============================
 # Model Definition
