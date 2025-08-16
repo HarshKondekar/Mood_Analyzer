@@ -240,10 +240,11 @@ if 'feedback_given' not in st.session_state:
 if 'user_id' not in st.session_state:
     st.session_state.user_id = f"user_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-if CLIENT and DB and FS:
+if CLIENT is not None and DB is not None and FS is not None:
     st.success("✅ MongoDB connected")
 else:
     st.error("❌ MongoDB not connected")
+
 
 st.subheader("Choose Input Method")
 col1, col2 = st.columns(2)
