@@ -180,7 +180,8 @@ def init_mongo():
             return None, None, None
 
 CLIENT, DB, FS = init_mongo()
-FEEDBACK_COL = DB[FEEDBACK_COLLECTION] if DB else None
+FEEDBACK_COL = DB[FEEDBACK_COLLECTION] if DB is not None else None
+
 
 # =============================
 # Feedback Functions
@@ -239,7 +240,7 @@ if 'feedback_given' not in st.session_state:
 if 'user_id' not in st.session_state:
     st.session_state.user_id = f"user_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-if CLIENT and DB and FS:
+if CLIENT is not None and DB is not None and FS is not None:
     st.success("✅ MongoDB connected")
 else:
     st.error("❌ MongoDB not connected")
