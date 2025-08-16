@@ -157,17 +157,17 @@ def plot_probs(probs: np.ndarray):
 # =============================
 # Mongo Init
 # =============================
+# =============================
+# Mongo Init
+# =============================
 @st.cache_resource(show_spinner=False)
 def init_mongo():
-    uri = None
-    try:
-        if "MONGO_URI" in st.secrets and st.secrets["MONGO_URI"]:
-            uri = st.secrets["MONGO_URI"]
-    except Exception:
-        pass
+    import certifi
+    from pymongo import MongoClient
+    import gridfs
 
-    if uri is None:
-        uri = "mongodb+srv://harshkondekar:vEmSS5mpmGWvBSpo@moodanalyzer.2bnqwd0.mongodb.net/mood_detection?retryWrites=true&w=majority"
+    # Use your exact Atlas URI
+    uri = "mongodb+srv://harshkondekar:vEmSS5mpmGWvBSpo@moodanalyzer.2bnqwd0.mongodb.net/mood_detection?retryWrites=true&w=majority"
 
     try:
         client = MongoClient(uri, serverSelectionTimeoutMS=10000, tlsCAFile=certifi.where())
@@ -179,6 +179,7 @@ def init_mongo():
     except Exception as e:
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
+
 
 CLIENT, DB, FS = init_mongo()
 FEEDBACK_COL = DB[FEEDBACK_COLLECTION] if DB is not None else None
