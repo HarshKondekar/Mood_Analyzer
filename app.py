@@ -9,22 +9,6 @@
 #   2. Ensure the target database name exists or can be created (MONGO_DB_NAME).
 #   3. Ensure you have network access / IP allowlist for the MongoDB deployment.
 #
-# Data model:
-#   - Images are stored in GridFS bucket named GRIDFS_BUCKET_NAME (default: "feedback_images").
-#   - Feedback metadata stored in collection FEEDBACK_COLLECTION (default: "feedback"). Each doc:
-#       {
-#         _id: ObjectId,
-#         timestamp_utc: ISO8601 str,
-#         predicted_emotion: str,
-#         correct_emotion: str,
-#         gridfs_id: ObjectId,            # pointer to the image file in GridFS
-#         image_filename: str,            # original file-ish name we generated
-#         user_id: str,
-#         probs: [float,...] (optional)   # full probability vector if available
-#       }
-#
-# Retrieval demo utilities (optional) are included at bottom (collapsed behind a debug checkbox).
-#
 # -------------------------------------------------------
 
 # =============================
@@ -46,20 +30,13 @@ FER2013 Mood Detection App with PyTorch + MongoDB
 # =============================
 from dotenv import load_dotenv
 import os
-
-# Specify full path
-from dotenv import load_dotenv
-load_dotenv()  # this will auto-find a .env if running locally
-
-
-# Check if loaded
-print("MONGO_URI:", os.getenv("MONGO_URI"))
+load_dotenv()  # auto-load .env if running locally
 
 import io
 import json
 import base64
 from datetime import datetime
-from typing import Optional, Dict, Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 import torch
@@ -99,7 +76,7 @@ def get_mongo_uri():
 @st.cache_resource(show_spinner=False)
 def init_mongo():
     uri = get_mongo_uri()
-    st.write("DEBUG: Using Mongo URI →", uri)  # 👈 add this line
+    st.write("DEBUG: Using Mongo URI →", uri)  # 👈 debug print
     try:
         client = MongoClient(uri, serverSelectionTimeoutMS=5000)
         client.admin.command('ping')
@@ -111,13 +88,11 @@ def init_mongo():
         st.error(f"❌ MongoDB connection failed: {e}")
         return None, None, None
 
-
-
 # =============================
 # Model Definition
 # =============================
 class SEBlock(nn.Module):
-    def __init__(self, channels, reduction=16):  # Changed from _init_ to __init__
+    def __init__(self, channels, reduction=16):
         super().__init__()
         self.squeeze = nn.AdaptiveAvgPool2d(1)
         self.excitation = nn.Sequential(
@@ -135,7 +110,7 @@ class SEBlock(nn.Module):
 
 
 class AdvancedMoodClassifier(nn.Module):
-    def __init__(self, num_classes=7):  # Changed from _init_ to __init__
+    def __init__(self, num_classes=7):
         super().__init__()
         from torchvision import models
         backbone = models.efficientnet_b4(pretrained=True)
@@ -157,11 +132,12 @@ class AdvancedMoodClassifier(nn.Module):
         x = x.flatten(1)
         return self.classifier(x)
 
-
 # =============================
 # Load Model
 # =============================
 CKPT_PATH = "final_mood_classifier HK.pth"  # update path as needed
+CLASS_NAMES = ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"]
+DEVICE = torch.device("cpu")
 
 @st.cache_resource
 def load_model():
@@ -171,7 +147,7 @@ def load_model():
         model.load_state_dict(checkpoint['model_state_dict'])
         model.eval()
         return model
-    except Exception as e:  # surface error to user
+    except Exception as e:
         st.error(f"Error loading model: {e}")
         return None
 
@@ -187,7 +163,6 @@ VAL_TRANSFORMS = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-
 def predict(image: Image.Image) -> Tuple[Optional[int], Optional[np.ndarray]]:
     if MODEL is None:
         return None, None
@@ -198,7 +173,6 @@ def predict(image: Image.Image) -> Tuple[Optional[int], Optional[np.ndarray]]:
         pred_idx = int(np.argmax(probs))
     return pred_idx, probs
 
-
 def plot_probs(probs: np.ndarray):
     fig, ax = plt.subplots(figsize=(6, 3))
     ax.barh(CLASS_NAMES, probs)
@@ -207,85 +181,32 @@ def plot_probs(probs: np.ndarray):
     plt.tight_layout()
     st.pyplot(fig)
 
-
 # =============================
 # Mongo Init
 # =============================
-@st.cache_resource(show_spinner=False)
-def init_mongo():
-    """Initialize a cached Mongo connection + GridFS handle.
-
-    Returns
-    -------
-    (client, db, fs) or (None, None, None) on failure.
-    """
-
-    uri = os.getenv("MONGO_URI")
-    print(uri)
-    try:
-        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
-        # Trigger a server selection to fail fast if unreachable
-        client.admin.command('ping')
-        db = client[MONGO_DB_NAME]
-        fs = gridfs.GridFS(db, collection=GRIDFS_BUCKET_NAME)
-        st.success("MongoDB connected successfully!")
-        return client, db, fs
-    except Exception as e:
-        st.error(f"MongoDB connection failed: {e}")
-        return None, None, None
-
-
 CLIENT, DB, FS = init_mongo()
-
-# Convenience collection handle (may be None)
 if DB is not None:
     FEEDBACK_COL = DB[FEEDBACK_COLLECTION]
 else:
     FEEDBACK_COL = None
 
-
 # =============================
 # Save Feedback (Mongo)
 # =============================
-
 def save_feedback(image: Image.Image, predicted: str, correct: str, probs: Optional[np.ndarray] = None) -> bool:
-    """Save user feedback to MongoDB.
-
-    Parameters
-    ----------
-    image : PIL.Image
-        User image to persist.
-    predicted : str
-        Model-predicted emotion.
-    correct : str
-        User-corrected emotion.
-    probs : np.ndarray, optional
-        Probability vector from model.
-
-    Returns
-    -------
-    bool
-        True if saved successfully, else False.
-    """
     if FS is None or FEEDBACK_COL is None:
         st.error("MongoDB not initialized. Cannot save feedback.")
         return False
 
     try:
-        # Unique timestamp-based name
         ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
         filename = f"feedback_{ts}.jpg"
-
-        # Convert image to bytes
         img_buffer = io.BytesIO()
         rgb_image = image.convert('RGB')
         rgb_image.save(img_buffer, format='JPEG', quality=95)
         img_bytes = img_buffer.getvalue()
-
-        # Store in GridFS
         gridfs_id = FS.put(img_bytes, filename=filename, contentType='image/jpeg')
 
-        # Build metadata doc
         feedback_data = {
             'timestamp_utc': datetime.utcnow().isoformat(),
             'predicted_emotion': predicted,
@@ -298,46 +219,36 @@ def save_feedback(image: Image.Image, predicted: str, correct: str, probs: Optio
             feedback_data['probs'] = [float(p) for p in probs]
 
         result = FEEDBACK_COL.insert_one(feedback_data)
-        print("RESULT DEKHO BC" , result)
         st.success(f"Feedback saved successfully! Doc ID: {result.inserted_id}")
         return True
-
     except Exception as e:
         st.error(f"Error saving feedback: {e}")
         return False
 
-
 # =============================
-# Helper: load image from GridFS (debug / admin)
+# Helper functions
 # =============================
-
 def load_feedback_image(gridfs_id: ObjectId) -> Optional[Image.Image]:
     if FS is None:
         return None
     try:
         data = FS.get(gridfs_id).read()
         return Image.open(io.BytesIO(data)).convert('RGB')
-    except Exception as e:  # debug only
+    except Exception as e:
         st.warning(f"Failed to load image from GridFS: {e}")
         return None
-
-
-# =============================
-# Helper function to convert image to base64 (UI convenience)
-# =============================
 
 def image_to_base64(image: Image.Image) -> str:
     buffer = io.BytesIO()
     image.save(buffer, format='JPEG')
     return base64.b64encode(buffer.getvalue()).decode()
 
-
 # =============================
 # Streamlit UI
 # =============================
 st.title("😃 FER2013 Mood Detection")
 
-# Initialize session state
+# Session state
 if 'mode' not in st.session_state:
     st.session_state.mode = None
 if 'feedback_given' not in st.session_state:
@@ -345,43 +256,38 @@ if 'feedback_given' not in st.session_state:
 if 'user_id' not in st.session_state:
     st.session_state.user_id = f"user_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-# Display Mongo status
+# Mongo status
 if CLIENT is not None and DB is not None and FS is not None:
     st.success("✅ MongoDB connected successfully")
 else:
     st.error("❌ MongoDB not connected")
 
-# Mode Selection
+# Mode selection
 st.subheader("Choose Input Method")
 col1, col2 = st.columns(2)
-
 with col1:
     if st.button("📤 Upload Image", use_container_width=True):
         st.session_state.mode = 'upload'
         st.session_state.feedback_given = False
-
 with col2:
     if st.button("📸 Live Camera", use_container_width=True):
         st.session_state.mode = 'camera'
         st.session_state.feedback_given = False
 
-# Image Input
+# Image input
 img = None
 if st.session_state.mode == 'upload':
-    st.subheader("Upload Image")
     uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
-    if uploaded_file is not None:
+    if uploaded_file:
         img = Image.open(uploaded_file).convert('RGB')
         st.image(img, caption="Uploaded Image", use_container_width=True)
-
 elif st.session_state.mode == 'camera':
-    st.subheader("Camera Input")
     camera_image = st.camera_input("Take a photo")
-    if camera_image is not None:
+    if camera_image:
         img = Image.open(camera_image).convert('RGB')
         st.image(img, caption="Camera Image", use_container_width=True)
 
-# Prediction trigger
+# Prediction
 if img is not None:
     if st.button("🔮 Predict Mood", use_container_width=True):
         if MODEL is None:
@@ -398,7 +304,7 @@ if img is not None:
                 else:
                     st.error("Prediction failed.")
 
-# Display Results
+# Display results
 if 'pred_idx' in st.session_state and 'probs' in st.session_state:
     pred_idx = st.session_state.pred_idx
     probs = np.array(st.session_state.probs)
@@ -406,122 +312,53 @@ if 'pred_idx' in st.session_state and 'probs' in st.session_state:
     confidence = probs[pred_idx]
 
     st.subheader("Prediction Results")
-
-    # Display prediction with confidence
     col1, col2 = st.columns(2)
     with col1:
         st.metric("Predicted Emotion", predicted_emotion)
     with col2:
         st.metric("Confidence", f"{confidence:.2%}")
 
-    # Plot probabilities
     st.subheader("Probability Distribution")
     plot_probs(probs)
 
-    # Feedback Section
+    # Feedback section
     if not st.session_state.feedback_given:
         st.subheader("Feedback")
         st.write("Was this prediction correct?")
-
         col_yes, col_no = st.columns(2)
-
         with col_yes:
             if st.button("✅ Yes, it's correct!", use_container_width=True):
-                # Save auto-confirmed feedback where correct == predicted
                 with st.spinner("Saving feedback..."):
-                    success = save_feedback(
-                        st.session_state.image,
-                        predicted_emotion,
-                        predicted_emotion,  # confirmed
-                        probs=probs,
-                    )
+                    success = save_feedback(st.session_state.image, predicted_emotion, predicted_emotion, probs=probs)
                 if success:
-                    st.success("Thank you for confirming! This helps improve our model.")
+                    st.success("Thank you for confirming!")
                     st.session_state.feedback_given = True
                     st.rerun()
-
         with col_no:
             if st.button("❌ No, it's wrong", use_container_width=True):
                 st.session_state.show_correction = True
                 st.rerun()
 
-        # Show correction interface
         if st.session_state.get('show_correction', False):
-            st.write("Please select the correct emotion:")
-            correct_emotion = st.selectbox(
-                "Correct emotion:",
-                CLASS_NAMES,
-                key="correct_emotion_select"
-            )
-
+            correct_emotion = st.selectbox("Correct emotion:", CLASS_NAMES, key="correct_emotion_select")
             if st.button("💾 Save Correction", use_container_width=True):
                 with st.spinner("Saving feedback..."):
-                    success = save_feedback(
-                        st.session_state.image,
-                        predicted_emotion,
-                        correct_emotion,
-                        probs=probs,
-                    )
-
+                    success = save_feedback(st.session_state.image, predicted_emotion, correct_emotion, probs=probs)
                 if success:
-                    st.success("✅ Thank you! Your feedback has been saved and will help improve our model.")
+                    st.success("✅ Thank you! Your feedback has been saved.")
                     st.session_state.feedback_given = True
                     st.session_state.show_correction = False
                     st.rerun()
-                else:
-                    st.error("❌ Failed to save feedback. Please try again.")
 
 # =============================
-# Sidebar Info
+# Sidebar
 # =============================
 st.sidebar.title("About")
-st.sidebar.info(
-    "This app uses a deep learning model trained on the FER2013 dataset to detect emotions in facial expressions. "
-    "The model can recognize 7 different emotions: angry, disgust, fear, happy, neutral, sad, and surprise."
-)
+st.sidebar.info("This app uses a deep learning model trained on the FER2013 dataset to detect emotions in facial expressions.")
 
-st.sidebar.title("How to use")
-st.sidebar.markdown(
-    """
-    1. Choose to upload an image or use your camera  
-    2. Click 'Predict Mood' to analyze the emotion  
-    3. Provide feedback to help improve the model  
-    4. Your feedback is stored in MongoDB (image in GridFS)  
-    """
-)
-
-# Debug information (optional)
+st.sidebar.title("Debug Info")
 if st.sidebar.checkbox("Show Debug Info"):
-    st.sidebar.subheader("Debug Information")
     st.sidebar.write(f"Device: {DEVICE}")
     st.sidebar.write(f"Model loaded: {MODEL is not None}")
     st.sidebar.write(f"Mongo connected: {CLIENT is not None and DB is not None and FS is not None}")
     st.sidebar.write(f"Session state keys: {list(st.session_state.keys())}")
-
-    if FEEDBACK_COL is not None:
-        st.sidebar.write("Recent feedback docs:")
-        try:
-            recent = list(FEEDBACK_COL.find().sort('timestamp_utc', -1).limit(5))
-            for doc in recent:
-                st.sidebar.json({k: str(v) if isinstance(v, ObjectId) else v for k, v in doc.items()})
-        except Exception as e:
-            st.sidebar.write(f"(error fetching feedback) {e}")
-
-        # Optionally display the latest stored image
-        if st.sidebar.button("Show latest stored image"):
-            try:
-                latest = FEEDBACK_COL.find().sort('timestamp_utc', -1).limit(1)
-                latest_list = list(latest)
-                if latest_list:
-                    doc = latest_list[0]
-                    grid_id = doc.get('gridfs_id')
-                    if grid_id:
-                        pil_img = load_feedback_image(grid_id)
-                        if pil_img is not None:
-                            st.sidebar.image(pil_img, caption=f"Latest image ({doc.get('predicted_emotion')})")
-                        else:
-                            st.sidebar.write("Could not load image from GridFS.")
-                else:
-                    st.sidebar.write("No feedback docs yet.")
-            except Exception as e:
-                st.sidebar.write(f"(error loading latest image) {e}")
