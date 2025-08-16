@@ -22,6 +22,7 @@ FER2013 Mood Detection App with PyTorch + MongoDB
 from dotenv import load_dotenv
 import os
 import io
+import json
 import base64
 from datetime import datetime
 from typing import Optional, Tuple
@@ -37,9 +38,8 @@ import matplotlib.pyplot as plt
 from pymongo import MongoClient
 import gridfs
 from bson import ObjectId
-import certifi  # TLS/SSL for Atlas
+import certifi  # for TLS/SSL Atlas
 
-# Optional: OpenCV for camera processing
 try:
     import cv2  # noqa: F401
 except ImportError:
@@ -48,16 +48,13 @@ except ImportError:
 # =============================
 # Load environment variables
 # =============================
-load_dotenv()  # automatically loads .env from project root
+env_path = ".env"
+load_dotenv(dotenv_path=env_path)
 
 # =============================
 # Mongo Config
 # =============================
-MONGO_URI = os.getenv("MONGO_URI") or "mongodb+srv://harshkondekar:vEmSS5mpmGWvBSpo@moodanalyzer.2bnqwd0.mongodb.net/mood_detection?retryWrites=true&w=majority"
-MONGO_URI_FALLBACK = "mongodb://localhost:27017/"
-MONGO_DB_NAME = "mood_detection"
 FEEDBACK_COLLECTION = "feedback"
-GRIDFS_BUCKET_NAME = "feedback_images"
 
 # =============================
 # Device & Classes
@@ -85,6 +82,7 @@ class SEBlock(nn.Module):
         y = self.squeeze(x).view(b, c)
         y = self.excitation(y).view(b, c, 1, 1)
         return x * y.expand_as(x)
+
 
 class AdvancedMoodClassifier(nn.Module):
     def __init__(self, num_classes=7):
@@ -129,7 +127,7 @@ def load_model():
 MODEL = load_model()
 
 # =============================
-# Transforms & Prediction
+# Transforms
 # =============================
 IMG_SIZE = 224
 VAL_TRANSFORMS = transforms.Compose([
@@ -161,13 +159,6 @@ def plot_probs(probs: np.ndarray):
 # =============================
 @st.cache_resource(show_spinner=False)
 def init_mongo():
-    import certifi
-    from pymongo import MongoClient
-    import gridfs
-    import os
-    import streamlit as st
-
-    # Use the provided Atlas URI
     uri = None
     try:
         if "MONGO_URI" in st.secrets and st.secrets["MONGO_URI"]:
@@ -176,7 +167,6 @@ def init_mongo():
         pass
 
     if uri is None:
-        # fallback to your hardcoded URI
         uri = "mongodb+srv://harshkondekar:vEmSS5mpmGWvBSpo@moodanalyzer.2bnqwd0.mongodb.net/mood_detection?retryWrites=true&w=majority"
 
     try:
@@ -193,20 +183,24 @@ def init_mongo():
 CLIENT, DB, FS = init_mongo()
 FEEDBACK_COL = DB[FEEDBACK_COLLECTION] if DB is not None else None
 
-
 # =============================
-# Feedback Functions
+# Save Feedback
 # =============================
 def save_feedback(image: Image.Image, predicted: str, correct: str, probs: Optional[np.ndarray] = None) -> bool:
     if FS is None or FEEDBACK_COL is None:
         st.error("❌ MongoDB not initialized. Cannot save feedback.")
         return False
+
     try:
         ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
         filename = f"feedback_{ts}.jpg"
+
         img_buffer = io.BytesIO()
         image.convert('RGB').save(img_buffer, format='JPEG', quality=95)
-        gridfs_id = FS.put(img_buffer.getvalue(), filename=filename, contentType='image/jpeg')
+        img_bytes = img_buffer.getvalue()
+
+        gridfs_id = FS.put(img_bytes, filename=filename, contentType='image/jpeg')
+
         feedback_data = {
             'timestamp_utc': datetime.utcnow().isoformat(),
             'predicted_emotion': predicted,
@@ -217,6 +211,7 @@ def save_feedback(image: Image.Image, predicted: str, correct: str, probs: Optio
         }
         if probs is not None:
             feedback_data['probs'] = [float(p) for p in probs]
+
         result = FEEDBACK_COL.insert_one(feedback_data)
         st.success(f"✅ Feedback saved! Doc ID: {result.inserted_id}")
         return True
@@ -238,6 +233,7 @@ def image_to_base64(image: Image.Image) -> str:
     buffer = io.BytesIO()
     image.save(buffer, format='JPEG')
     return base64.b64encode(buffer.getvalue()).decode()
+
 
 # =============================
 # Streamlit UI
