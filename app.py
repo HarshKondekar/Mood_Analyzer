@@ -28,6 +28,7 @@ FER2013 Mood Detection App with PyTorch + MongoDB
 # =============================
 # Imports
 # =============================
+import streamlit as st
 from dotenv import load_dotenv
 import os
 import io
@@ -44,10 +45,11 @@ from torchvision import transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 
-from pymongo import MongoClient 
+from pymongo import MongoClient   # ✅ correct place
 import gridfs
 from bson import ObjectId
-import certifi                  
+import certifi
+        
 
 
 # Optional: OpenCV for camera processing
