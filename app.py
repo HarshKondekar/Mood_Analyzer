@@ -112,7 +112,8 @@ class AdvancedMoodClassifier(nn.Module):
 # =============================
 # Load Model
 # =============================
-CKPT_PATH = "final_mood_classifier HK.pth"
+CKPT_PATH = "final_mood_classifier_HK.pth"
+
 
 
 
