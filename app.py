@@ -112,7 +112,8 @@ class AdvancedMoodClassifier(nn.Module):
 # =============================
 # Load Model
 # =============================
-CKPT_PATH = "final_mood_classifier HK.pth"
+CKPT_PATH = "models/final_mood_classifier_HK.pth"  # if you put it in models/
+
 
 @st.cache_resource
 def load_model():
