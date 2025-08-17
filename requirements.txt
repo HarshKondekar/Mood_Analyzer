@@ -9,9 +9,10 @@ matplotlib
 
 # MongoDB
 pymongo[srv]
+dnspython
 certifi
 
-dnspython
+
 
 # Optional (Camera)
 opencv-python-headless
